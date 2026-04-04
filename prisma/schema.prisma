@@ -1,0 +1,127 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String
+  role             String    @default("CLIENT")
+  image            String?
+  title            String?
+  bio              String?
+  timezone         String    @default("Asia/Kolkata (UTC+05:30)")
+  currency         String    @default("USD")
+  emailVerified    DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  accounts         Account[]
+  sessions         Session[]
+  services         Service[]
+  bookingsAsClient   Booking[] @relation("ClientBookings")
+  bookingsAsProvider Booking[] @relation("ProviderBookings")
+  sentMessages       Message[] @relation("SentMessages")
+  receivedMessages   Message[] @relation("ReceivedMessages")
+  transactions       Transaction[]
+}
+
+model Service {
+  id          String   @id @default(uuid())
+  title       String
+  description String   @default("")
+  category    String   @default("Other")
+  price       Float
+  isActive    Boolean  @default(true)
+  rating      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  providerId  String
+  provider    User     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  bookings    Booking[]
+}
+
+model Booking {
+  id          String   @id @default(uuid())
+  status      String   @default("PENDING")
+  totalAmount Float
+  scheduledAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clientId    String
+  client      User     @relation("ClientBookings", fields: [clientId], references: [id])
+
+  providerId  String
+  provider    User     @relation("ProviderBookings", fields: [providerId], references: [id])
+
+  serviceId   String
+  service     Service  @relation(fields: [serviceId], references: [id])
+}
+
+model Message {
+  id             String   @id @default(uuid())
+  content        String
+  isRead         Boolean  @default(false)
+  conversationId String
+  createdAt      DateTime @default(now())
+
+  senderId   String
+  sender     User @relation("SentMessages", fields: [senderId], references: [id])
+
+  receiverId String
+  receiver   User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model Transaction {
+  id          String   @id @default(uuid())
+  description String
+  amount      Float
+  type        String   @default("PAYMENT")
+  status      String   @default("CLEARED")
+  createdAt   DateTime @default(now())
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Account {
+  id                 String  @id @default(uuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
